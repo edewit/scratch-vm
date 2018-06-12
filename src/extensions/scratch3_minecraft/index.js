@@ -25,33 +25,22 @@ class Minecraft {
 
         var crypt = new cryptJS.JSEncrypt(512);
         var eb = new EventBus(urlParams.eventBusURL);
-        // eb.enableReconnect(true);
-        eb.onopen = () => {
-            eb.registerHandler("mcs.events", function (error, message) {
-                if (error != null) {
-                    console.log("Vert.x Event Bus received error: " + error);
-                } else {
-                    ext.eventReceived(message);
-                }
-            });
 
+        this.minecraft = new storeys.StoreysMinecraft(eb);
+        var _this = this;
+
+        eb.onopen = () => {
             if (typeof (urlParams.code !== 'undefined')) {
                 crypt.getKey(function() {
-                    eb.send("mcs.actions", { action: "login", token: urlParams.code, key: crypt.getPublicKeyB64() }, (error, message) => {
-                        if (!error && message.body) {
-                            console.log("Logging in... secret", message.body.secret);
-                            var id = crypt.decrypt(message.body.secret);
-                            var key = message.body.key;
-                            crypt = new cryptJS.JSEncrypt();
-                            crypt.setPublicKey(key);
-                            code = crypt.encrypt(id);
-                        }
+                    _this.minecraft.login(urlParams.code, crypt.getPublicKeyB64()).subscribe(response => {
+                        var id = crypt.decrypt(response.secret);
+                        crypt = new cryptJS.JSEncrypt();
+                        crypt.setPublicKey(response.key);
+                        _this.code = crypt.encrypt(id);
                     });
                 });
             }
         }
-
-        this.minecraft = new storeys.StoreysMinecraft(eb);
     }
 
     /**
@@ -180,14 +169,14 @@ class Minecraft {
     }
 
     narrate(args, callback) {
-        this.minecraft.narrate(null, args.ENTITY, args.TEXT).catch(err => log('error:', err));
+        this.minecraft.narrate(this.code, args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
     }
 
     minecraftCommand(args) {
     }
 
     showTitle(args, callback) {
-        this.minecraft.showTitle(null, args.TEXT).catch(err => log('error:', err));
+        this.minecraft.showTitle(this.code, args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
     }
 }
 
