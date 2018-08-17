@@ -26,7 +26,7 @@ class Minecraft {
         var crypt = new cryptJS.JSEncrypt(512);
         var eb = new EventBus(urlParams.eventBusURL);
 
-        this.minecraft = new storeys.StoreysMinecraft(eb);
+        this.minecraft = new storeys.Minecraft(eb);
         var _this = this;
 
         eb.onopen = () => {
@@ -128,6 +128,11 @@ class Minecraft {
                             defaultValue: 'Welcome!'
                         }
                     }
+                },
+                {
+                    opcode: 'getPlayerItemHeld',
+                    blockType: BlockType.REPORTER,
+                    text: 'Item held'
                 }
             ],
             menus: {
@@ -166,6 +171,10 @@ class Minecraft {
 
     whenInside(args) {
         return false;
+    }
+
+    getPlayerItemHeld(args) {
+        return this.minecraft.getPlayerItemHeld(this.code, storeys.HandItem.HandItem).toPromise();
     }
 
     narrate(args, callback) {
