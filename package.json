@@ -45,6 +45,7 @@
     "scratch-parser": "5.0.0",
     "scratch-sb1-converter": "0.2.7",
     "scratch-translate-extension-languages": "0.0.20191118205314",
+    "storeys": "file:../../minecraft-storeys-maker/api",
     "socket.io-client": "2.0.4",
     "text-encoding": "0.7.0",
     "worker-loader": "^1.1.1"
@@ -83,8 +84,5 @@
     "webpack": "^4.16.5",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "^3.1.5"
-  },
-  "dependencies": {
-    "storeys": "file:../../minecraft-storeys-maker/api"
   }
 }
