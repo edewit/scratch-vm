@@ -1,8 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const storeys = require('storeys');
-const cryptJS = require('jsencrypt');
-const EventBus = require('vertx-bus-client');
 
 const log = require('../../util/log');
 
@@ -23,24 +21,10 @@ class Minecraft {
         while (match = search.exec(query))
             urlParams[decode(match[1])] = decode(match[2]);
 
-        var crypt = new cryptJS.JSEncrypt(512);
-        var eb = new EventBus(urlParams.eventBusURL);
 
-        this.minecraft = new storeys.Minecraft(eb);
-        var _this = this;
-
-        eb.onopen = () => {
-            if (typeof (urlParams.code !== 'undefined')) {
-                crypt.getKey(function() {
-                    _this.minecraft.login(urlParams.code, crypt.getPublicKeyB64()).subscribe(response => {
-                        var id = crypt.decrypt(response.secret);
-                        crypt = new cryptJS.JSEncrypt();
-                        crypt.setPublicKey(response.key);
-                        _this.code = crypt.encrypt(id);
-                    });
-                });
-            }
-        }
+        new storeys.MinecraftProvider().connect(urlParams.eventBusURL, urlParams.code).subscribe(minecraft => {
+            this.minecraft = minecraft;
+        });
     }
 
     /**
