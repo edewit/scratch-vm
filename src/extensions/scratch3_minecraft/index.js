@@ -9,13 +9,14 @@ const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYA
 class Minecraft {
     constructor() {
         this.eventsReceived = [];
-        this.code;
+        this.registeredConditions = new Set();
+        this.playerLastJoined = undefined;
 
         var match,
-        pl     = /\+/g,  // Regex for replacing addition symbol with a space
+        pl = /\+/g, // Regex for replacing addition symbol with a space
         search = /([^&=]+)=?([^&]*)/g,
         decode = function (s) { return decodeURIComponent(s.replace(pl, " ")); },
-        query  = window.location.search.substring(1);
+        query = window.location.search.substring(1);
 
         var urlParams = {};
         while (match = search.exec(query))
@@ -24,6 +25,10 @@ class Minecraft {
 
         new storeys.MinecraftProvider().connect(urlParams.eventBusURL, urlParams.code).subscribe(minecraft => {
             this.minecraft = minecraft;
+            minecraft.whenPlayerJoins().subscribe(result => {
+                this.playerLastJoined = result.player;
+                this.eventsReceived["Player joins"] = true;
+            });
         });
     }
 
@@ -43,7 +48,7 @@ class Minecraft {
                     arguments: {
                         EVENT: {
                             type: ArgumentType.STRING,
-                            menu: 'menuEvents',
+                            menu: 'events',
                             defaultValue: 'playerJoined'
                         }
                     }
@@ -51,16 +56,22 @@ class Minecraft {
                 {
                     opcode: 'whenEntity',
                     blockType: BlockType.HAT,
-                    text: 'when [ENTITY] [INTERACTION]',
+                    text: 'when [ENTITY] right clicked',
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
                             defaultValue: 'Entity'
-                        },
-                        INTERACTION: {
+                        }
+                    }
+                },
+                {
+                    opcode: 'whenCommand',
+                    blockType: BlockType.HAT,
+                    text: 'when /[COMMAND]',
+                    arguments: {
+                        COMMAND: {
                             type: ArgumentType.STRING,
-                            menu: 'menuInteraction',
-                            defaultValue: 'rightClicked'
+                            defaultValue: 'demo'
                         }
                     }
                 },
@@ -117,21 +128,33 @@ class Minecraft {
                     opcode: 'getPlayerItemHeld',
                     blockType: BlockType.REPORTER,
                     text: 'Item held'
+                },
+                {
+                    opcode: 'getLastPlayerJoined',
+                    blockType: BlockType.REPORTER,
+                    text: 'Last joined Player'
+                },
+                {
+                    opcode: 'getItem',
+                    blockType: BlockType.REPORTER,
+                    text: '[ITEM]',
+                    arguments: {
+                        ITEM: {
+                            type: ArgumentType.STRING,
+                            menu: 'items',
+                            defaultValue: 'Apple'
+                        }
+                    }
                 }
             ],
             menus: {
-                menuEvents: [
+                events: [
                     {
                         value: 'playerJoined',
                         text: 'Player joins'
                     }
                 ],
-                menuInteraction: [
-                    {
-                        value: 'rightClicked',
-                        text: 'right clicked'
-                    }
-                ]
+                items: this._getItemNames()
             },
             // translations
             translation_map: {
@@ -145,31 +168,69 @@ class Minecraft {
         };
     }
 
-    whenEvent(args) {
-        return false;
+    _getItemNames() {
+        return Object.keys(storeys.ItemType).map(name => ({
+            text: name,
+            value: name
+        }));
+    }
+
+    whenEvent(event) {
+        const was = this.eventsReceived[event];
+        this.eventsReceived[event] = false;
+        return was || false;
+    }
+
+    _whenCondition(method, ...args) {
+        const eventName = method + args;
+        if (!this.registeredConditions.has(eventName)) {
+            this.registeredConditions.add(eventName);
+            this.minecraft[method].apply(this.minecraft, args).subscribe(register => {
+                register.on().subscribe(() => {
+                    this.eventsReceived[eventName] = true;
+                });
+            });
+        }
+      return this.whenEvent(eventName);
     }
 
     whenEntity(args) {
-        return false;
+        return this._whenCondition('whenEntityRightClicked', args.ENTITY);
     }
 
     whenInside(args) {
-        return false;
+        return this._whenCondition('whenInside', args.X1, args.Y1, args.Z1, args.X2, args.Y2, args.Z2);
     }
 
-    getPlayerItemHeld(args) {
-        return this.minecraft.getPlayerItemHeld(this.code, storeys.HandItem.HandItem).toPromise();
+    whenCommand(args) {
+        return this._whenCondition('whenCommand', args.COMMAND);
     }
 
-    narrate(args, callback) {
-        this.minecraft.narrate(this.code, args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
+    getPlayerItemHeld() {
+        return new Promise(resolve => {
+            this.minecraft.getItemHeld(storeys.HandType.MainHand)
+                .subscribe(result => resolve(result), e => log('error', e));
+        });
+    }
+
+    getLastPlayerJoined() {
+        return this.playerLastJoined;
+    }
+
+    getItem(args) {
+        return args.ITEM;
+    }
+
+    narrate(args) {
+        this.minecraft.narrate(args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
     }
 
     minecraftCommand(args) {
+        this.minecraft.runCommand(args.COMMAND).subscribe(() => log('command called'), err => log('error:', err));
     }
 
-    showTitle(args, callback) {
-        this.minecraft.showTitle(this.code, args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
+    showTitle(args) {
+        this.minecraft.showTitle(args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
     }
 }
 
