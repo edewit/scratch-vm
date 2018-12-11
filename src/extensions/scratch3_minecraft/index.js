@@ -12,24 +12,16 @@ class Minecraft {
         this.registeredConditions = new Set();
         this.playerLastJoined = undefined;
 
-        var match,
-        pl = /\+/g, // Regex for replacing addition symbol with a space
-        search = /([^&=]+)=?([^&]*)/g,
-        decode = function (s) { return decodeURIComponent(s.replace(pl, " ")); },
-        query = window.location.search.substring(1);
+        const urlParams = new Map();//new URL(window.location.href).searchParams;
 
-        var urlParams = {};
-        while (match = search.exec(query))
-            urlParams[decode(match[1])] = decode(match[2]);
-
-
-        new storeys.MinecraftProvider().connect(urlParams.eventBusURL, urlParams.code).subscribe(minecraft => {
-            this.minecraft = minecraft;
-            minecraft.whenPlayerJoins().subscribe(result => {
-                this.playerLastJoined = result.player;
-                this.eventsReceived["Player joins"] = true;
+        new storeys.MinecraftProvider().connect(urlParams.get('eventBusURL'), urlParams.get('code'))
+            .subscribe(minecraft => {
+                this.minecraft = minecraft;
+                minecraft.whenPlayerJoins().subscribe(result => {
+                    this.playerLastJoined = result.player;
+                    this.eventsReceived["Player joins"] = true;
+                });
             });
-        });
     }
 
     /**
@@ -163,6 +155,25 @@ class Minecraft {
                 de: {
                 },
                 nl: {
+                    // 'whenEvent': 'Als [EVENT]',
+                    // 'events_playerJoined': 'Speler joined',
+                    // 'items_Nothing' : 'Niks',
+                    // 'items_Apple' : 'Appel',
+                    // 'items_Beef' : 'Rund',
+                    // 'items_Beetroot' : 'Bietje',
+                    // 'items_Boat' : 'Boot',
+                    // 'items_Book' : 'Boek',
+                    // 'items_Bow' : 'Boog',
+                    // 'items_Bowl' : 'Schaal',
+                    // 'items_Bread' : 'Brood',
+                    // 'items_Cactus' : 'Kactus',
+                    // 'items_Cake' : 'Cake',
+                    // 'items_Carrot' : 'Wortel',
+                    // 'items_Cauldron' : 'Cauldron',
+                    // 'items_Chicken' : 'Kip',
+                    // 'items_Clock' : 'Klok',
+                    // 'items_Cookie' : 'Koekje'
+
                 }
             }
         };
