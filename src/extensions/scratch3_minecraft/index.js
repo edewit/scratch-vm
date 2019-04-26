@@ -11,15 +11,19 @@ class Minecraft {
         this.eventsReceived = [];
         this.registeredConditions = new Set();
         this.playerLastJoined = undefined;
+        this.effectedPlayer = undefined;
 
-        const urlParams = new Map();//new URL(window.location.href).searchParams;
+        const urlParams = new URL(window.location.href).searchParams;
 
-        new storeys.MinecraftProvider().connect(urlParams.get('eventBusURL'), urlParams.get('code'))
+        new storeys.MinecraftProvider().connect(urlParams.get('eventBusURL'))
             .subscribe(minecraft => {
                 this.minecraft = minecraft;
-                minecraft.whenPlayerJoins().subscribe(result => {
-                    this.playerLastJoined = result.player;
-                    this.eventsReceived["Player joins"] = true;
+                minecraft.login(urlParams.get('code')).subscribe(response => {
+                    this.effectedPlayer = response.playerUuid;
+                    minecraft.whenPlayerJoins(this.effectedPlayer).subscribe(result => {
+                        this.playerLastJoined = result.player;
+                        this.eventsReceived["Player joins"] = true;
+                    });
                 });
             });
     }
@@ -70,14 +74,9 @@ class Minecraft {
                 {
                     opcode: 'whenInside',
                     blockType: BlockType.HAT,
-                    text: 'when inside [X1] [Y1] [Z1] [X2] [Y2] [Z2]',
+                    text: 'when inside [NAME]',
                     arguments: {
-                        X1: { type: ArgumentType.NUMBER, defaultValue: 10},
-                        Y1: { type: ArgumentType.NUMBER, defaultValue: 10},
-                        Z1: { type: ArgumentType.NUMBER, defaultValue: 10},
-                        X2: { type: ArgumentType.NUMBER, defaultValue: 10},
-                        Y2: { type: ArgumentType.NUMBER, defaultValue: 10},
-                        Z2: { type: ArgumentType.NUMBER, defaultValue: 10}
+                        NAME: { type: ArgumentType.STRING, defaultValue: 'name'}
                     }
                 },
                 {
@@ -196,8 +195,11 @@ class Minecraft {
         const eventName = method + args;
         if (!this.registeredConditions.has(eventName)) {
             this.registeredConditions.add(eventName);
-            this.minecraft[method].apply(this.minecraft, args).subscribe(register => {
-                register.on().subscribe(() => {
+            this.minecraft[method].apply(this.minecraft, [this.effectedPlayer, ...args]).subscribe(register => {
+                register.on().subscribe((data) => {
+                    var loggedInPlayer = this.effectedPlayer;
+                    this.effectedPlayer = data.playerUUID;
+                    setTimeout(() => this.effectedPlayer = loggedInPlayer, 2000);
                     this.eventsReceived[eventName] = true;
                 });
             });
@@ -210,7 +212,7 @@ class Minecraft {
     }
 
     whenInside(args) {
-        return this._whenCondition('whenInside', args.X1, args.Y1, args.Z1, args.X2, args.Y2, args.Z2);
+        return this._whenCondition('whenInside', args.NAME);
     }
 
     whenCommand(args) {
@@ -219,7 +221,7 @@ class Minecraft {
 
     getPlayerItemHeld() {
         return new Promise(resolve => {
-            this.minecraft.getItemHeld(storeys.HandType.MainHand)
+            this.minecraft.getItemHeld(this.effectedPlayer, storeys.HandType.MainHand)
                 .subscribe(result => resolve(result), e => log('error', e));
         });
     }
@@ -233,15 +235,15 @@ class Minecraft {
     }
 
     narrate(args) {
-        this.minecraft.narrate(args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
+        this.minecraft.narrate(this.effectedPlayer, args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
     }
 
     minecraftCommand(args) {
-        this.minecraft.runCommand(args.COMMAND).subscribe(() => log('command called'), err => log('error:', err));
+        this.minecraft.runCommand(this.effectedPlayer, args.COMMAND).subscribe(() => log('command called'), err => log('error:', err));
     }
 
     showTitle(args) {
-        this.minecraft.showTitle(args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
+        this.minecraft.showTitle(this.effectedPlayer, args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
     }
 }
 
