@@ -1,6 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
-const storeys = require('storeys');
+const storeys = require('minecraft-storeys');
 
 const log = require('../../util/log');
 
@@ -13,19 +13,19 @@ class Minecraft {
         this.playerLastJoined = undefined;
         this.effectedPlayer = undefined;
 
-        const urlParams = new URL(window.location.href).searchParams;
+        const urlParams = global.settings || new URL(window.location.href).searchParams;
 
-        new storeys.MinecraftProvider().connect(urlParams.get('eventBusURL'))
-            .subscribe(minecraft => {
-                this.minecraft = minecraft;
-                minecraft.login(urlParams.get('code')).subscribe(response => {
-                    this.effectedPlayer = response.playerUuid;
-                    minecraft.whenPlayerJoins(this.effectedPlayer).subscribe(result => {
-                        this.playerLastJoined = result.player;
-                        this.eventsReceived["Player joins"] = true;
-                    });
-                });
+        this._onConnect = new storeys.MinecraftProvider(urlParams.get('eventBusURL'), urlParams.get('code')).connect();
+        this._onConnect.then(minecraft => {
+            this.minecraft = minecraft;
+            this.effectedPlayer = minecraft.loggedInPlayer;
+            this.minecraft.whenPlayerJoins(this.effectedPlayer).subscribe(result => {
+                this.playerLastJoined = result.player;
+                this.eventsReceived["Player joins"] = true;
             });
+        });
+
+        this._onConnect.then.bind(this);
     }
 
     /**
@@ -195,16 +195,18 @@ class Minecraft {
         const eventName = method + args;
         if (!this.registeredConditions.has(eventName)) {
             this.registeredConditions.add(eventName);
-            this.minecraft[method].apply(this.minecraft, [this.effectedPlayer, ...args]).subscribe(register => {
-                register.on().subscribe((data) => {
-                    var loggedInPlayer = this.effectedPlayer;
-                    this.effectedPlayer = data.playerUUID;
-                    setTimeout(() => this.effectedPlayer = loggedInPlayer, 2000);
-                    this.eventsReceived[eventName] = true;
+            this._onConnect.then(() => {
+                this.minecraft[method].apply(this.minecraft, args).then(register => {
+                    register.on().subscribe((data) => {
+                        var loggedInPlayer = this.effectedPlayer;
+                        this.effectedPlayer = data.playerUUID;
+                        setTimeout(() => this.effectedPlayer = loggedInPlayer, 2000);
+                        this.eventsReceived[eventName] = true;
+                    });
                 });
             });
         }
-      return this.whenEvent(eventName);
+        return this.whenEvent(eventName);
     }
 
     whenEntity(args) {
@@ -212,18 +214,15 @@ class Minecraft {
     }
 
     whenInside(args) {
-        return this._whenCondition('whenInside', args.NAME);
+        return this._whenCondition('whenInside', this.effectedPlayer, args.NAME);
     }
 
     whenCommand(args) {
-        return this._whenCondition('whenCommand', args.COMMAND);
+        this._onConnect.then(() => this._whenCondition('whenCommand', args.COMMAND));
     }
 
     getPlayerItemHeld() {
-        return new Promise(resolve => {
-            this.minecraft.getItemHeld(this.effectedPlayer, storeys.HandType.MainHand)
-                .subscribe(result => resolve(result), e => log('error', e));
-        });
+        this._onConnect.then(() => this.minecraft.getItemHeld(this.effectedPlayer, storeys.HandType.MainHand));
     }
 
     getLastPlayerJoined() {
@@ -235,15 +234,15 @@ class Minecraft {
     }
 
     narrate(args) {
-        this.minecraft.narrate(this.effectedPlayer, args.ENTITY, args.TEXT).subscribe(() => log('narrate called'), err => log('error:', err));
+        this._onConnect.then(() => this.minecraft.narrate(this.effectedPlayer, args.ENTITY, args.TEXT).then(() => log('narrate called'), err => log('error:', err)));
     }
 
     minecraftCommand(args) {
-        this.minecraft.runCommand(this.effectedPlayer, args.COMMAND).subscribe(() => log('command called'), err => log('error:', err));
+        this._onConnect.then(() => this.minecraft.runCommand(this.effectedPlayer, args.COMMAND).then(() => log('command called'), err => log('error:', err)));
     }
 
     showTitle(args) {
-        this.minecraft.showTitle(this.effectedPlayer, args.TEXT).subscribe(() => log('showTitle called'), err => log('error:', err));
+        this._onConnect.then(() => this.minecraft.showTitle(this.effectedPlayer, args.TEXT).then(() => log('showTitle called'), err => log('error:', err)));
     }
 }
 
