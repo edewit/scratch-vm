@@ -5,6 +5,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/LLK/scratch-vm/badge.svg?branch=develop)](https://coveralls.io/github/LLK/scratch-vm?branch=develop)
 [![Greenkeeper badge](https://badges.greenkeeper.io/LLK/scratch-vm.svg)](https://greenkeeper.io/)
 
+> This is a fork of the scratch-vm with a plugin added for [minecraft-storeys](https://github.com/vorburger/minecraft-storeys-maker)
+> see the [plugin](src/extensions/scratch3_minecraft/index.js) for more information
+
 ## Installation
 This requires you to have Git and Node.js installed.
 
