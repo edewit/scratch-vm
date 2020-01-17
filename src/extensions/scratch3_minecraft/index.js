@@ -195,7 +195,7 @@ class Minecraft {
         const eventName = method + args;
         if (!this.registeredConditions.has(eventName)) {
             this.registeredConditions.add(eventName);
-            this._onConnect.then(() => {
+            this._onConnect.then(() =>
                 this.minecraft[method].apply(this.minecraft, args).then(register => {
                     register.on().subscribe((data) => {
                         var loggedInPlayer = this.effectedPlayer;
@@ -203,8 +203,8 @@ class Minecraft {
                         setTimeout(() => this.effectedPlayer = loggedInPlayer, 2000);
                         this.eventsReceived[eventName] = true;
                     });
-                });
-            });
+                })
+            );
         }
         return this.whenEvent(eventName);
     }
@@ -218,7 +218,7 @@ class Minecraft {
     }
 
     whenCommand(args) {
-        this._onConnect.then(() => this._whenCondition('whenCommand', args.COMMAND));
+        return this._whenCondition('whenCommand', args.COMMAND);
     }
 
     getPlayerItemHeld() {
