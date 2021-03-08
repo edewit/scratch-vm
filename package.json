@@ -1,6 +1,6 @@
 {
   "name": "minecraft-storeys-scratch-vm",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "description": "Virtual Machine for Scratch 3.0",
   "author": "Massachusetts Institute of Technology",
   "license": "BSD-3-Clause",

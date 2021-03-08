@@ -12,6 +12,7 @@ class Minecraft {
         this.eventsReceived = [];
         this.registeredConditions = new Set();
         this.playerLastJoined = null;
+        this.loggedInPlayer = global.settings ? global.settings.get('user') : null;
         this.effectedPlayer = null;
 
         const urlParams = global.settings || new URL(window.location.href).searchParams;
@@ -19,7 +20,7 @@ class Minecraft {
         this._onConnect = new storeys.MinecraftProvider(urlParams.get('eventBusURL'), urlParams.get('code')).connect();
         this._onConnect.then(minecraft => {
             this.minecraft = minecraft;
-            this.effectedPlayer = minecraft.loggedInPlayer || global.settings.get('user');
+            this.loggedInPlayer = minecraft.loggedInPlayer || global.settings.get('user');
             this.minecraft.whenPlayerJoins(this.effectedPlayer).subscribe(result => {
                 this.playerLastJoined = result.player;
                 this.eventsReceived['Player joins'] = true;
@@ -201,11 +202,7 @@ class Minecraft {
             this._onConnect.then(() =>
                 this.minecraft[method].apply(this.minecraft, args).then(register => {
                     register.on().subscribe(data => {
-                        const loggedInPlayer = this.effectedPlayer;
                         this.effectedPlayer = data.playerUUID;
-                        setTimeout(() => {
-                            this.effectedPlayer = loggedInPlayer;
-                        }, 2000);
                         this.eventsReceived[eventName] = true;
                     });
                 })
@@ -219,7 +216,7 @@ class Minecraft {
     }
 
     whenInside (args) {
-        return this._whenCondition('whenInside', this.effectedPlayer, args.NAME);
+        return this._whenCondition('whenInside', this.loggedInPlayer, args.NAME);
     }
 
     whenCommand (args) {
@@ -227,7 +224,8 @@ class Minecraft {
     }
 
     getPlayerItemHeld () {
-        this._onConnect.then(() => this.minecraft.getItemHeld(this.effectedPlayer, storeys.HandType.MainHand));
+        const player = this.effectedPlayer || this.loggedInPlayer;
+        this._onConnect.then(() => this.minecraft.getItemHeld(player, storeys.HandType.MainHand));
     }
 
     getLastPlayerJoined () {
@@ -239,19 +237,22 @@ class Minecraft {
     }
 
     narrate (args) {
-        this._onConnect.then(() => this.minecraft.narrate(this.effectedPlayer, args.ENTITY, args.TEXT).then(
+        const player = this.effectedPlayer || this.loggedInPlayer;
+        this._onConnect.then(() => this.minecraft.narrate(player, args.ENTITY, args.TEXT).then(
             () => log('narrate called'), err => log('error:', err))
         );
     }
 
     minecraftCommand (args) {
-        this._onConnect.then(() => this.minecraft.runCommand(this.effectedPlayer, args.COMMAND).then(
+        const player = this.effectedPlayer || this.loggedInPlayer;
+        this._onConnect.then(() => this.minecraft.runCommand(player, args.COMMAND).then(
             () => log('command called'), err => log('error:', err))
         );
     }
 
     showTitle (args) {
-        this._onConnect.then(() => this.minecraft.showTitle(this.effectedPlayer, args.TEXT).then(
+        const player = this.effectedPlayer || this.loggedInPlayer;
+        this._onConnect.then(() => this.minecraft.showTitle(player, args.TEXT).then(
             () => log('showTitle called'), err => log('error:', err))
         );
     }
